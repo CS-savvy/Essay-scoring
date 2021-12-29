@@ -106,7 +106,7 @@ class SpacyParserGraph:
 if __name__ == '__main__':
 
     data_csv_file = Path("Dataset/mohler/mohler_processed.csv")
-    depedency_map_file = Path("assets/txt/dependency_tags.txt")
+    depedency_map_file = Path("assets/txt/dependency_tags.txt") # src = https://spacy.io/models/en#en_core_web_md-labels
     output_dir = Path("Dataset/mohler/GT_graphs")
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
