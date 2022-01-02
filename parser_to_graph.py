@@ -27,6 +27,7 @@ class SpacyParserGraph:
         print("Loading spacy model .. ")
         self.nlp = spacy.load('en_core_web_md')
         self.columns = columns
+        self.oov_id = 20000
 
     def spacyParser(self, text: str, verbose: bool = False) -> dict:
         """
@@ -48,7 +49,7 @@ class SpacyParserGraph:
             if token.has_vector:
                 node_token_id.append(self.nlp.vocab.vectors.find(key=token.norm))
             else:
-                node_token_id.append(-1)
+                node_token_id.append(self.oov_id)
             node_text.append(token.text)
             if spacy.explain(token.dep_) is None:
                 # print(token, spacy.explain(token.dep_))
@@ -80,10 +81,15 @@ class SpacyParserGraph:
         graph_label = []
         node_texts = []
         edge_types = []
-        for i, row in tqdm(self.df.iterrows(), desc='Processing data'):
+        for i, row in tqdm(self.df.iterrows(), desc='Processing data', total=self.df.shape[0]):
             raw_text = row[self.columns[1]]
             graph_rep = self.spacyParser(raw_text)
-            graph_label.append(row[self.columns[2]])
+            if graph_rep['len'] < 9 or graph_rep['len'] > 64:
+                continue
+            score = row[self.columns[2]]
+            if score > 5:
+                continue
+            graph_label.append(score)
             dgl_graph = dgl.graph((graph_rep['src_nodes'], graph_rep['dst_nodes']), num_nodes=graph_rep['len'])
             dgl_graph.ndata['tokens'] = torch.from_numpy(np.array(graph_rep['node_token_id'], dtype=np.int16))
             dgl_graph.edata['type'] = torch.from_numpy(np.array(graph_rep['edge_type_id'], dtype=np.int8))
