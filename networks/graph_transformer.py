@@ -15,14 +15,14 @@ class GraphTransformerNet(nn.Module):
         :param net_params: network configurable parameters.
         """
         super().__init__()
-        num_atom_type = net_params['num_atom_type']
-        num_bond_type = net_params['num_bond_type']
+        num_atom_type = net_params['num_vocab']
+        num_bond_type = net_params['num_edge_type']
         hidden_dim = net_params['hidden_dim']
-        num_heads = net_params['n_heads']
+        num_heads = net_params['num_heads']
         out_dim = net_params['out_dim']
         in_feat_dropout = net_params['in_feat_dropout']
         dropout = net_params['dropout']
-        n_layers = net_params['L']
+        n_layers = net_params['num_layers']
         self.readout = net_params['readout']
         self.layer_norm = net_params['layer_norm']
         self.batch_norm = net_params['batch_norm']
