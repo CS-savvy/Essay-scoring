@@ -53,8 +53,8 @@ class GraphTransformerNet(nn.Module):
         self.layers.append(GraphTransformerLayer(hidden_dim, out_dim, num_heads, dropout, self.layer_norm, self.batch_norm, self.residual))
         self.MLP_layer = MLPReadout(out_dim, 1)   # 1 out dim since regression problem
 
-    def forward(self, h, e, g, h_lap_pos_enc=None, h_wl_pos_enc=None):
-
+    def forward(self, g, h, e, h_lap_pos_enc=None, h_wl_pos_enc=None):
+        # print("tokens:", h)
         # input embedding
         h = self.embedding_h(h)
         h = self.in_feat_dropout(h)
