@@ -17,7 +17,6 @@ class MohlerDataset(torch.utils.data.Dataset):
         """
 
         self.graphs, self.labels = dgl.load_graphs(graph_path.as_posix())
-        self.graphs = [g for g in self.graphs if 8 < g.num_nodes() < 50]
         self.scores = self.labels['score']
         self.n_samples = len(self.graphs)
         self.info = dgl.data.utils.load_info(graph_info_path.as_posix())
@@ -26,6 +25,9 @@ class MohlerDataset(torch.utils.data.Dataset):
     def _collect_stats(self):
         self.max_nodes = max([g.num_nodes() for g in self.graphs])
         self.max_edges = max([g.num_edges() for g in self.graphs])
+
+    def get_graph_ids(self, indices):
+        return [self.info['graph_ids'][i] for i in indices]
 
     @staticmethod
     def laplacian_positional_encoding(g, pos_enc_dim):
@@ -72,7 +74,7 @@ class MohlerDataset(torch.utils.data.Dataset):
     def collate(self, samples):
         # The input samples is a list of pairs (graph, label).
         graphs, labels = map(list, zip(*samples))
-        labels = torch.stack(labels).unsqueeze(dim=1).to(torch.long)
+        labels = torch.stack(labels).unsqueeze(dim=1)
         batched_graph = dgl.batch(graphs)
         return batched_graph, labels
 

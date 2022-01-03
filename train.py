@@ -67,6 +67,14 @@ def train_model(model: object, dataset: object, config: dict, verbose: bool = Tr
     train_sampler = SubsetRandomSampler(indices[:split_point])
     val_sampler = SubsetRandomSampler(indices[split_point:])
 
+    train_graph_ids = dataset.get_graph_ids(train_sampler.indices)
+    with open(config['model_dir'] / 'train.txt', 'w') as f:
+        f.write("\n".join(train_graph_ids))
+
+    val_graph_ids = dataset.get_graph_ids(val_sampler.indices)
+    with open(config['model_dir'] / 'val.txt', 'w') as f:
+        f.write("\n".join(val_graph_ids))
+
     train_loader = DataLoader(dataset, batch_size=config['batch_size'],
                               sampler=train_sampler, collate_fn=dataset.collate)
     val_loader = DataLoader(dataset, batch_size=config['batch_size'],
@@ -137,11 +145,11 @@ def init(configs: dict) -> dict:
         torch.cuda.manual_seed(configs['seed'])
 
     model_dir = Path(configs['model_dir'])
-    if not model_dir.exists():
-        model_dir.mkdir(parents=True)
-    else:
-        print("Model dir already exists")
-        exit()
+    # if not model_dir.exists():
+    #     model_dir.mkdir(parents=True)
+    # else:
+    #     print("Model dir already exists")
+    #     exit()
     configs['model_dir'] = model_dir
     return configs
 
