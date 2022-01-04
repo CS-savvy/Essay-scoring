@@ -4,7 +4,7 @@ graph_file: Dataset/mohler/GT_graphs/data.bin
 graph_info_file: Dataset/mohler/GT_graphs/data.pkl
 shuffle: True
 
-model_dir: model/graphTrans_regress
+model_dir: model/with_word_spacy_embed
 
 # Train parameter
 batch_size: 32
@@ -13,7 +13,7 @@ epochs: 500
 init_lr: 0.0007
 weight_decay: 0.0
 lr_reduce_factor: 0.5
-lr_schedule_patience: 15
+lr_schedule_patience: 25
 
 # pytorch
 device: gpu # auto, gpu, cpu.
@@ -22,9 +22,9 @@ seed: 56339
 # Model configurations
 num_vocab: 20001
 num_edge_type: 45
-hidden_dim: 64
+hidden_dim: 64 # original 64
 num_heads: 8
-out_dim: 64
+out_dim: 64 #  original 64
 in_feat_dropout: 0.0
 dropout: 0.0
 num_layers: 10

@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from networks.layers.graph_transformer_edge import GraphTransformerLayer
@@ -9,7 +10,7 @@ class GraphTransformerNet(nn.Module):
     """
     Graph Transformer Network
     """
-    def __init__(self, net_params: dict):
+    def __init__(self, net_params: dict, word_embedding: np.array = None):
         """
 
         :param net_params: network configurable parameters.
@@ -39,7 +40,11 @@ class GraphTransformerNet(nn.Module):
         if self.wl_pos_enc:
             self.embedding_wl_pos_enc = nn.Embedding(max_wl_role_index, hidden_dim)
         
-        self.embedding_h = nn.Embedding(num_atom_type, hidden_dim)
+        self.embedding_h = nn.Embedding(num_atom_type, 300)
+        if word_embedding is not None:
+            self.embedding_h.from_pretrained(word_embedding)
+
+        self.post_embedding = nn.Linear(300, hidden_dim)
 
         if self.edge_feat:
             self.embedding_e = nn.Embedding(num_bond_type, hidden_dim)
@@ -57,6 +62,7 @@ class GraphTransformerNet(nn.Module):
         # print("tokens:", h)
         # input embedding
         h = self.embedding_h(h)
+        h = self.post_embedding(h)
         h = self.in_feat_dropout(h)
         if self.lap_pos_enc:
             h_lap_pos_enc = self.embedding_lap_pos_enc(h_lap_pos_enc.float()) 

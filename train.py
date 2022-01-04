@@ -13,6 +13,7 @@ from tqdm import tqdm
 from metrics import MAE
 from torch.utils.tensorboard import SummaryWriter
 from eval import evaluate_network
+import spacy
 
 
 def train_epoch(model: nn.Module, optimizer: optim, device: torch.device, data_loader: DataLoader, logger: tqdm) -> tuple:
@@ -154,6 +155,14 @@ def init(configs: dict) -> dict:
     return configs
 
 
+def get_embedding_weights():
+    nlp = spacy.load('en_core_web_md')
+    embeddings = nlp.vocab.vectors.data
+    oov_vector = np.zeros((1, 300))
+    final_embedding = np.vstack([embeddings, oov_vector])
+    return final_embedding
+
+
 if __name__ == "__main__":
 
     config_file_path = Path("config.yaml")
@@ -164,10 +173,13 @@ if __name__ == "__main__":
 
     graph_path = Path(config['graph_file'])
     graph_info_path = Path(config['graph_info_file'])
-
     mohler_dataset = MohlerDataset(graph_path, graph_info_path)
     if config['lap_pos_enc']:
         mohler_dataset.add_laplacian_positional_encodings(config['pos_enc_dim'])
-    gt_model = GraphTransformerNet(config)
+    print("Getting Spacy embeddings .. ")
+    word_embeddings = get_embedding_weights()
+    print("Done.")
+    word_embeddings = torch.from_numpy(word_embeddings.astype(np.float32))
+    gt_model = GraphTransformerNet(config, word_embeddings)
     train_model(gt_model, mohler_dataset, config)
 
