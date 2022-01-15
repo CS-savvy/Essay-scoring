@@ -59,8 +59,6 @@ class GraphTransformerNet(nn.Module):
         self.MLP_layer = MLPReadout(out_dim, 1)   # 1 out dim since regression problem
 
     def forward(self, g, h, e, h_lap_pos_enc=None, h_wl_pos_enc=None):
-        # print("tokens:", h)
-        # input embedding
         h = self.embedding_h(h)
         h = self.post_embedding(h)
         h = self.in_feat_dropout(h)
@@ -71,7 +69,7 @@ class GraphTransformerNet(nn.Module):
             h_wl_pos_enc = self.embedding_wl_pos_enc(h_wl_pos_enc) 
             h = h + h_wl_pos_enc
         if not self.edge_feat: # edge feature set to 1
-            e = torch.ones(e.size(0),1).to(self.device)
+            e = torch.ones(e.size(0), 1).to(self.device)
         e = self.embedding_e(e)   
         
         # convnets
@@ -91,7 +89,36 @@ class GraphTransformerNet(nn.Module):
         return self.MLP_layer(hg)
 
     def get_node_embedding(self, h):
-        return self.embedding_h(h)
+        return self.post_embedding(self.embedding_h(h))
+
+    def infer(self, h, e, g, h_lap_pos_enc=None, h_wl_pos_enc=None):
+        h = h[0]
+        h = self.in_feat_dropout(h)
+        if self.lap_pos_enc:
+            h_lap_pos_enc = self.embedding_lap_pos_enc(h_lap_pos_enc.float())
+            h = h + h_lap_pos_enc
+        if self.wl_pos_enc:
+            h_wl_pos_enc = self.embedding_wl_pos_enc(h_wl_pos_enc)
+            h = h + h_wl_pos_enc
+        if not self.edge_feat:  # edge feature set to 1
+            e = torch.ones(e.size(0), 1).to(self.device)
+        e = self.embedding_e(e)
+
+        # convnets
+        for conv in self.layers:
+            h, e = conv(g, h, e)
+        g.ndata['h'] = h
+
+        if self.readout == "sum":
+            hg = dgl.sum_nodes(g, 'h')
+        elif self.readout == "max":
+            hg = dgl.max_nodes(g, 'h')
+        elif self.readout == "mean":
+            hg = dgl.mean_nodes(g, 'h')
+        else:
+            hg = dgl.mean_nodes(g, 'h')  # default readout is mean nodes
+
+        return self.MLP_layer(hg)
 
     def loss(self, scores, targets):
         # loss = nn.MSELoss()(scores,targets)
