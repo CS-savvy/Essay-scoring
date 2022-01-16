@@ -4,7 +4,7 @@ graph_file: Dataset/mohler/GT_graphs/data.bin
 graph_info_file: Dataset/mohler/GT_graphs/data.pkl
 shuffle: True
 
-model_dir: model/with_word_spacy_embed
+model_dir: model/embed_scratch
 
 # Train parameter
 batch_size: 32

@@ -16,6 +16,7 @@ class GraphTransformerNet(nn.Module):
         :param net_params: network configurable parameters.
         """
         super().__init__()
+        self.criterion = nn.L1Loss()
         num_atom_type = net_params['num_vocab']
         num_bond_type = net_params['num_edge_type']
         hidden_dim = net_params['hidden_dim']
@@ -40,11 +41,11 @@ class GraphTransformerNet(nn.Module):
         if self.wl_pos_enc:
             self.embedding_wl_pos_enc = nn.Embedding(max_wl_role_index, hidden_dim)
         
-        self.embedding_h = nn.Embedding(num_atom_type, 300)
-        if word_embedding is not None:
-            self.embedding_h.from_pretrained(word_embedding)
+        self.embedding_h = nn.Embedding(num_atom_type, hidden_dim)
+        # if word_embedding is not None:
+        #     self.embedding_h.from_pretrained(word_embedding)
 
-        self.post_embedding = nn.Linear(300, hidden_dim)
+        # self.post_embedding = nn.Linear(300, hidden_dim)
 
         if self.edge_feat:
             self.embedding_e = nn.Embedding(num_bond_type, hidden_dim)
@@ -60,7 +61,7 @@ class GraphTransformerNet(nn.Module):
 
     def forward(self, g, h, e, h_lap_pos_enc=None, h_wl_pos_enc=None):
         h = self.embedding_h(h)
-        h = self.post_embedding(h)
+        # h = self.post_embedding(h)
         h = self.in_feat_dropout(h)
         if self.lap_pos_enc:
             h_lap_pos_enc = self.embedding_lap_pos_enc(h_lap_pos_enc.float()) 
@@ -89,7 +90,8 @@ class GraphTransformerNet(nn.Module):
         return self.MLP_layer(hg)
 
     def get_node_embedding(self, h):
-        return self.post_embedding(self.embedding_h(h))
+        # return self.post_embedding(self.embedding_h(h))
+        return self.embedding_h(h)
 
     def infer(self, h, e, g, h_lap_pos_enc=None, h_wl_pos_enc=None):
         h = h[0]
@@ -121,7 +123,6 @@ class GraphTransformerNet(nn.Module):
         return self.MLP_layer(hg)
 
     def loss(self, scores, targets):
-        # loss = nn.MSELoss()(scores,targets)
-        loss = nn.L1Loss()(scores, targets)
+        loss = self.criterion(scores, targets)
         return loss
 

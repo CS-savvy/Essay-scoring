@@ -10,7 +10,7 @@ import random
 import numpy as np
 from networks.graph_transformer import GraphTransformerNet
 from tqdm import tqdm
-from metrics import MAE
+from metrics import MAE, MSE
 from torch.utils.tensorboard import SummaryWriter
 from eval import evaluate_network
 import spacy
@@ -20,6 +20,7 @@ def train_epoch(model: nn.Module, optimizer: optim, device: torch.device, data_l
     model.train()
     epoch_loss = 0
     epoch_train_mae = 0
+    epoch_train_mse = 0
     for iter, (batch_graphs, batch_targets) in enumerate(data_loader):
         logger.set_postfix({'batch': iter})
         batch_graphs = batch_graphs.to(device)
@@ -42,11 +43,13 @@ def train_epoch(model: nn.Module, optimizer: optim, device: torch.device, data_l
         optimizer.step()
         epoch_loss += loss.detach().item()
         epoch_train_mae += MAE(batch_scores, batch_targets)
+        epoch_train_mse += MSE(batch_scores, batch_targets)
 
     epoch_loss /= (iter + 1)
     epoch_train_mae /= (iter + 1)
+    epoch_train_mse /= (iter + 1)
 
-    return epoch_loss, epoch_train_mae, optimizer
+    return epoch_loss, epoch_train_mae, epoch_train_mse, optimizer
 
 
 def train_model(model: object, dataset: object, config: dict, verbose: bool = True) -> None:
@@ -92,23 +95,23 @@ def train_model(model: object, dataset: object, config: dict, verbose: bool = Tr
 
     epoch_train_losses, epoch_val_losses = [], []
     epoch_train_MAEs, epoch_val_MAEs = [], []
+    epoch_train_MSEs, epoch_val_MSEs = [], []
 
     min_val_mae = 1000000
     with tqdm(range(config['epochs'])) as t:
         for epoch in t:
             t.set_description('Epoch %d' % epoch)
             start = time.time()
-            epoch_train_loss, epoch_train_mae, optimizer = train_epoch(model, optimizer, config['device'], train_loader, t)
-            epoch_val_loss, epoch_val_mae = evaluate_network(model, config['device'], val_loader)
+            epoch_train_loss, epoch_train_mae, epoch_train_mse, optimizer = train_epoch(model, optimizer, config['device'], train_loader, t)
+            epoch_val_loss, epoch_val_mae, epoch_val_mse = evaluate_network(model, config['device'], val_loader)
 
             epoch_train_losses.append(epoch_train_loss)
             epoch_val_losses.append(epoch_val_loss)
             epoch_train_MAEs.append(epoch_train_mae)
+            epoch_train_MSEs.append(epoch_train_mse)
             epoch_val_MAEs.append(epoch_val_mae)
+            epoch_val_MSEs.append(epoch_val_mse)
 
-            # t.set_postfix(time=time.time() - start, lr=optimizer.param_groups[0]['lr'],
-            #               train_loss=epoch_train_loss, val_loss=epoch_val_loss,
-            #               train_MAE=epoch_train_mae, val_MAE=epoch_val_mae)
             print(f"\n Time: {time.time()-start} | lr: {optimizer.param_groups[0]['lr']} | train loss: {epoch_train_loss}"
                   f" val loss: {epoch_val_loss} | train MAE: {epoch_train_mae} | val MAE: {epoch_val_mae}")
             scheduler.step(epoch_val_loss)
@@ -116,7 +119,9 @@ def train_model(model: object, dataset: object, config: dict, verbose: bool = Tr
             writer.add_scalar('train/_loss', epoch_train_loss, epoch)
             writer.add_scalar('val/_loss', epoch_val_loss, epoch)
             writer.add_scalar('train/_mae', epoch_train_mae, epoch)
+            writer.add_scalar('train/_mse', epoch_train_mse, epoch)
             writer.add_scalar('val/_mae', epoch_val_mae, epoch)
+            writer.add_scalar('val/_mse', epoch_val_mse, epoch)
             writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
 
             if epoch > 3 and min_val_mae > epoch_val_mae:
@@ -146,11 +151,11 @@ def init(configs: dict) -> dict:
         torch.cuda.manual_seed(configs['seed'])
 
     model_dir = Path(configs['model_dir'])
-    # if not model_dir.exists():
-    #     model_dir.mkdir(parents=True)
-    # else:
-    #     print("Model dir already exists")
-    #     exit()
+    if not model_dir.exists():
+        model_dir.mkdir(parents=True)
+    else:
+        print("Model dir already exists")
+        exit()
     configs['model_dir'] = model_dir
     return configs
 
@@ -176,10 +181,10 @@ if __name__ == "__main__":
     mohler_dataset = MohlerDataset(graph_path, graph_info_path)
     if config['lap_pos_enc']:
         mohler_dataset.add_laplacian_positional_encodings(config['pos_enc_dim'])
-    print("Getting Spacy embeddings .. ")
-    word_embeddings = get_embedding_weights()
+    # print("Getting Spacy embeddings .. ")
+    # word_embeddings = get_embedding_weights()
     print("Done.")
-    word_embeddings = torch.from_numpy(word_embeddings.astype(np.float32))
-    gt_model = GraphTransformerNet(config, word_embeddings)
+    # word_embeddings = torch.from_numpy(word_embeddings.astype(np.float32))
+    gt_model = GraphTransformerNet(config)
     train_model(gt_model, mohler_dataset, config)
 
