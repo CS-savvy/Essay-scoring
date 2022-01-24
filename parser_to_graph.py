@@ -1,4 +1,6 @@
-from pandas import read_csv
+import traceback
+
+from pandas import read_csv, read_excel
 from pathlib import Path
 import spacy
 import dgl
@@ -21,7 +23,7 @@ class SpacyParserGraph:
         :param dependency_map_file: path of file path which enumerates dependency type.
         :param columns: A list of useful columns in the order of ID, texts, label.
         """
-        self.df = read_csv(data_file, delimiter=",", encoding='utf8')
+        self.df = read_excel(data_file)
         with open(dependency_map_file, 'r') as f:
             self.dep_map = f.read().split("\n")
         print("Loading spacy model .. ")
@@ -82,21 +84,25 @@ class SpacyParserGraph:
         node_texts = []
         edge_types = []
         for i, row in tqdm(self.df.iterrows(), desc='Processing data', total=self.df.shape[0]):
-            raw_text = row[self.columns[1]]
-            graph_rep = self.spacyParser(raw_text)
-            if graph_rep['len'] < 9 or graph_rep['len'] > 64:
-                continue
-            score = row[self.columns[2]]
-            if score > 5:
-                continue
-            graph_label.append(score)
-            dgl_graph = dgl.graph((graph_rep['src_nodes'], graph_rep['dst_nodes']), num_nodes=graph_rep['len'])
-            dgl_graph.ndata['tokens'] = torch.from_numpy(np.array(graph_rep['node_token_id'], dtype=np.int16))
-            dgl_graph.edata['type'] = torch.from_numpy(np.array(graph_rep['edge_type_id'], dtype=np.int8))
-            graphs.append(dgl_graph)
-            graph_id.append(row[self.columns[0]])
-            node_texts.append(graph_rep['node_text'])
-            edge_types.append(graph_rep['edge_type'])
+            try:
+                raw_text = row[self.columns[1]]
+                graph_rep = self.spacyParser(raw_text)
+                if graph_rep['len'] < 9 or graph_rep['len'] > 64:
+                    continue
+                score = row[self.columns[2]]
+                if score > 5:
+                    continue
+                graph_label.append(score)
+                dgl_graph = dgl.graph((graph_rep['src_nodes'], graph_rep['dst_nodes']), num_nodes=graph_rep['len'])
+                dgl_graph.ndata['tokens'] = torch.from_numpy(np.array(graph_rep['node_token_id'], dtype=np.int16))
+                dgl_graph.edata['type'] = torch.from_numpy(np.array(graph_rep['edge_type_id'], dtype=np.int8))
+                graphs.append(dgl_graph)
+                graph_id.append(row[self.columns[0]])
+                node_texts.append(graph_rep['node_text'])
+                edge_types.append(graph_rep['edge_type'])
+            except:
+                print(traceback.format_exc())
+                print(f"Skipping Row: {i} - Text: {row[self.columns[1]]}")
 
         labels = {'score': torch.from_numpy(np.array(graph_label, dtype=np.float16))}
         info_dict = {'graph_ids': graph_id, 'texts': node_texts, 'dep_types': edge_types}
@@ -111,11 +117,11 @@ class SpacyParserGraph:
 
 if __name__ == '__main__':
 
-    data_csv_file = Path("Dataset/mohler/mohler_processed.csv")
+    data_csv_file = Path("Dataset/scientsbank/scientsbank_processed.xlsx")
     depedency_map_file = Path("assets/txt/dependency_tags.txt") # src = https://spacy.io/models/en#en_core_web_md-labels
-    output_dir = Path("Dataset/mohler/GT_graphs")
+    output_dir = Path("Dataset/scientsbank/GT_graphs")
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
 
-    SPG = SpacyParserGraph(data_csv_file, depedency_map_file, columns=['uid', 'student_answer', 'score_avg'])
+    SPG = SpacyParserGraph(data_csv_file, depedency_map_file, columns=['answer_id', 'student_answer', 'score'])
     SPG.to_graph(output_dir)

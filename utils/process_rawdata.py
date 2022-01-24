@@ -2,8 +2,8 @@ from pathlib import Path
 import pandas as pd
 import shortuuid
 
-data_path = Path("../Dataset/mohler/mohler_formatted.csv", dtype=str)
-save_path = Path("../Dataset/mohler/mohler_processed.csv")
+data_path = Path("../Dataset/scientsbank/scientsbank_core.xlsx", dtype=str)
+save_path = Path("../Dataset/scientsbank/scientsbank_processed.xlsx")
 
 
 def generate_id(prefix: str = None, length: int = 10) -> str:
@@ -23,8 +23,8 @@ def generate_id(prefix: str = None, length: int = 10) -> str:
     return shortuuid.ShortUUID().random(length=length)
 
 
-column_to_keep = ['id', 'question', 'desired_answer', 'student_answer', 'score_me', 'score_other', 'score_avg']
-df = pd.read_csv(data_path, delimiter=",", encoding='utf8', usecols=column_to_keep)
-df['uid'] = df.apply(lambda x: generate_id(str(x.id).replace('.', '_')), axis=1)
+column_to_keep = ['answer_id', 'student_answer', 'accuracy', 'score']
+df = pd.read_excel(data_path, usecols=column_to_keep)
+df['uid'] = df.apply(lambda x: generate_id(str(x.answer_id).replace('.', '_')), axis=1)
 
-df.to_csv(save_path, index=False)
+df.to_excel(save_path, index=False)

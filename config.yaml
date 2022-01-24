@@ -1,12 +1,15 @@
 ---
 # Dataset
-graph_file: Dataset/mohler/GT_graphs/data.bin
-graph_info_file: Dataset/mohler/GT_graphs/data.pkl
+dataset: Sbank # Mohler, Sbank
+graph_file: Dataset/scientsbank/GT_graphs/data.bin
+graph_info_file: Dataset/scientsbank/GT_graphs/data.pkl
 shuffle: True
 
-model_dir: model/embed_scratch
+model_dir: model/Sbank_prunned_class
 
 # Train parameter
+mode: classification # regression, classification
+n_class: 5
 batch_size: 32
 val_split: 0.2
 epochs: 500
@@ -20,8 +23,8 @@ device: gpu # auto, gpu, cpu.
 seed: 56339
 
 # Model configurations
-num_vocab: 20001
-num_edge_type: 45
+num_vocab: 2000 # 2000 / 20001
+num_edge_type: 30 # 30 / 45
 hidden_dim: 64 # original 64
 num_heads: 8
 out_dim: 64 #  original 64

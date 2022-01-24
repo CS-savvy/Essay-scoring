@@ -16,8 +16,11 @@ class GraphTransformerNet(nn.Module):
         :param net_params: network configurable parameters.
         """
         super().__init__()
-        self.criterion = nn.L1Loss()
-        num_atom_type = net_params['num_vocab']
+        if net_params['mode'] == 'classification':
+            self.criterion = nn.CrossEntropyLoss()
+        else:
+            self.criterion = nn.L1Loss()
+        num_vocab = net_params['num_vocab']
         num_bond_type = net_params['num_edge_type']
         hidden_dim = net_params['hidden_dim']
         num_heads = net_params['num_heads']
@@ -41,7 +44,7 @@ class GraphTransformerNet(nn.Module):
         if self.wl_pos_enc:
             self.embedding_wl_pos_enc = nn.Embedding(max_wl_role_index, hidden_dim)
         
-        self.embedding_h = nn.Embedding(num_atom_type, hidden_dim)
+        self.embedding_h = nn.Embedding(num_vocab, hidden_dim)
         # if word_embedding is not None:
         #     self.embedding_h.from_pretrained(word_embedding)
 
@@ -57,7 +60,10 @@ class GraphTransformerNet(nn.Module):
         self.layers = nn.ModuleList([GraphTransformerLayer(hidden_dim, hidden_dim, num_heads, dropout,
                                                     self.layer_norm, self.batch_norm, self.residual) for _ in range(n_layers-1) ]) 
         self.layers.append(GraphTransformerLayer(hidden_dim, out_dim, num_heads, dropout, self.layer_norm, self.batch_norm, self.residual))
-        self.MLP_layer = MLPReadout(out_dim, 1)   # 1 out dim since regression problem
+        if net_params['mode'] == 'classification':
+            self.MLP_layer = MLPReadout(out_dim, net_params['n_class'])   # 1 out dim since regression problem
+        else:
+            self.MLP_layer = MLPReadout(out_dim, 1)
 
     def forward(self, g, h, e, h_lap_pos_enc=None, h_wl_pos_enc=None):
         h = self.embedding_h(h)
