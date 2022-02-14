@@ -1,41 +1,55 @@
 ---
-# Dataset
-dataset: Sbank # Mohler, Sbank
-graph_file: Dataset/scientsbank/GT_graphs/data.bin
-graph_info_file: Dataset/scientsbank/GT_graphs/data.pkl
-shuffle: True
+Setup:
+  device: gpu # auto, gpu, cpu.
+  seed: 56339
+  exp_dir: Experiments/FakeNews_complete_set
+  dataset: FakeNews # Mohler, Sbank
+  mode: classification # regression, classification
+  lap_pos_enc: True
 
-model_dir: model/Sbank_prunned_class
+Train:
+  val_split: 0.2
+  epochs: 100
+  init_lr: 0.0007
+  weight_decay: 0.0
+  lr_reduce_factor: 0.5
+  lr_schedule_patience: 25
+  batch_size: 32
+  shuffle: True
 
-# Train parameter
-mode: classification # regression, classification
-n_class: 5
-batch_size: 32
-val_split: 0.2
-epochs: 500
-init_lr: 0.0007
-weight_decay: 0.0
-lr_reduce_factor: 0.5
-lr_schedule_patience: 25
+Datasets:
+  Mohler:
+    graph_file: Dataset/mohler/GT_graphs/data.bin
+    graph_info_file: Dataset/mohler/GT_graphs/data.pkl
+    n_class: 11
+    filter_tokens: True
+    num_vocab: 2000 # 2000 / 20001
+    num_edge_type: 30 # 30 / 45
+  Sbank:
+    graph_file: Dataset/scientsbank/GT_graphs/data.bin
+    graph_info_file: Dataset/scientsbank/GT_graphs/data.pkl
+    n_class: 5
+    filter_tokens: True
+    num_vocab: 2000 # 2000 / 20001
+    num_edge_type: 30 # 30 / 45
+  FakeNews:
+    graph_dir: Dataset/Fake_News/v1/GT_graphs/Graph
+    graph_info_dir: Dataset/Fake_News/v1/GT_graphs/Graph_info
+    n_class: 2
+    num_vocab: 20001 # 2000 / 20001
+    num_edge_type: 45 # 30 / 45
 
-# pytorch
-device: gpu # auto, gpu, cpu.
-seed: 56339
-
-# Model configurations
-num_vocab: 2000 # 2000 / 20001
-num_edge_type: 30 # 30 / 45
-hidden_dim: 64 # original 64
-num_heads: 8
-out_dim: 64 #  original 64
-in_feat_dropout: 0.0
-dropout: 0.0
-num_layers: 10
-readout: mean
-layer_norm: False
-batch_norm: True
-residual: True
-edge_feat: True
-lap_pos_enc: True
-wl_pos_enc: False
-pos_enc_dim: 8
+Network:
+  hidden_dim: 64 # original 64
+  num_heads: 8
+  out_dim: 64 #  original 64
+  in_feat_dropout: 0.0
+  dropout: 0.0
+  num_layers: 10
+  readout: mean
+  layer_norm: False
+  batch_norm: True
+  residual: True
+  edge_feat: True
+  pos_enc_dim: 8
+  wl_pos_enc: False

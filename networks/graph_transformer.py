@@ -10,36 +10,36 @@ class GraphTransformerNet(nn.Module):
     """
     Graph Transformer Network
     """
-    def __init__(self, net_params: dict, word_embedding: np.array = None):
+    def __init__(self, device=None, word_embedding: np.array = None, **kwargs):
         """
 
         :param net_params: network configurable parameters.
         """
         super().__init__()
-        if net_params['mode'] == 'classification':
+        if kwargs['mode'] == 'classification':
             self.criterion = nn.CrossEntropyLoss()
         else:
             self.criterion = nn.L1Loss()
-        num_vocab = net_params['num_vocab']
-        num_bond_type = net_params['num_edge_type']
-        hidden_dim = net_params['hidden_dim']
-        num_heads = net_params['num_heads']
-        out_dim = net_params['out_dim']
-        in_feat_dropout = net_params['in_feat_dropout']
-        dropout = net_params['dropout']
-        n_layers = net_params['num_layers']
-        self.readout = net_params['readout']
-        self.layer_norm = net_params['layer_norm']
-        self.batch_norm = net_params['batch_norm']
-        self.residual = net_params['residual']
-        self.edge_feat = net_params['edge_feat']
-        self.device = net_params['device']
-        self.lap_pos_enc = net_params['lap_pos_enc']
-        self.wl_pos_enc = net_params['wl_pos_enc']
+        num_vocab = kwargs['num_vocab']
+        num_edge_type = kwargs['num_edge_type']
+        hidden_dim = kwargs['hidden_dim']
+        num_heads = kwargs['num_heads']
+        out_dim = kwargs['out_dim']
+        in_feat_dropout = kwargs['in_feat_dropout']
+        dropout = kwargs['dropout']
+        n_layers = kwargs['num_layers']
+        self.readout = kwargs['readout']
+        self.layer_norm = kwargs['layer_norm']
+        self.batch_norm = kwargs['batch_norm']
+        self.residual = kwargs['residual']
+        self.edge_feat = kwargs['edge_feat']
+        self.device = device
+        self.lap_pos_enc = kwargs['lap_pos_enc']
+        self.wl_pos_enc = kwargs['wl_pos_enc']
         max_wl_role_index = 37 # this is maximum graph size in the dataset
         
         if self.lap_pos_enc:
-            pos_enc_dim = net_params['pos_enc_dim']
+            pos_enc_dim = kwargs['pos_enc_dim']
             self.embedding_lap_pos_enc = nn.Linear(pos_enc_dim, hidden_dim)
         if self.wl_pos_enc:
             self.embedding_wl_pos_enc = nn.Embedding(max_wl_role_index, hidden_dim)
@@ -51,7 +51,7 @@ class GraphTransformerNet(nn.Module):
         # self.post_embedding = nn.Linear(300, hidden_dim)
 
         if self.edge_feat:
-            self.embedding_e = nn.Embedding(num_bond_type, hidden_dim)
+            self.embedding_e = nn.Embedding(num_edge_type, hidden_dim)
         else:
             self.embedding_e = nn.Linear(1, hidden_dim)
         
@@ -60,8 +60,8 @@ class GraphTransformerNet(nn.Module):
         self.layers = nn.ModuleList([GraphTransformerLayer(hidden_dim, hidden_dim, num_heads, dropout,
                                                     self.layer_norm, self.batch_norm, self.residual) for _ in range(n_layers-1) ]) 
         self.layers.append(GraphTransformerLayer(hidden_dim, out_dim, num_heads, dropout, self.layer_norm, self.batch_norm, self.residual))
-        if net_params['mode'] == 'classification':
-            self.MLP_layer = MLPReadout(out_dim, net_params['n_class'])   # 1 out dim since regression problem
+        if kwargs['mode'] == 'classification':
+            self.MLP_layer = MLPReadout(out_dim, kwargs['n_class'])   # 1 out dim since regression problem
         else:
             self.MLP_layer = MLPReadout(out_dim, 1)
 
