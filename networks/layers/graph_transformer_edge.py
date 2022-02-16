@@ -8,7 +8,6 @@ import numpy as np
 
 """
     Graph Transformer Layer with edge features
-    
 """
 
 """
@@ -24,6 +23,7 @@ def scaling(field, scale_constant):
         return {field: ((edges.data[field]) / scale_constant)}
     return func
 
+
 # Improving implicit attention scores with explicit edge features, if available
 def imp_exp_attn(implicit_attn, explicit_edge):
     """
@@ -33,6 +33,7 @@ def imp_exp_attn(implicit_attn, explicit_edge):
     def func(edges):
         return {implicit_attn: (edges.data[implicit_attn] * edges.data[explicit_edge])}
     return func
+
 
 # To copy edge features to be passed to FFN_e
 def out_edge_features(edge_feat):
@@ -74,7 +75,7 @@ class MultiHeadAttentionLayer(nn.Module):
     
     def propagate_attention(self, g):
         # Compute attention score
-        g.apply_edges(src_dot_dst('K_h', 'Q_h', 'score')) #, edges)
+        g.apply_edges(src_dot_dst('K_h', 'Q_h', 'score'))
         
         # scaling
         g.apply_edges(scaling('score', np.sqrt(self.out_dim)))
@@ -119,7 +120,8 @@ class GraphTransformerLayer(nn.Module):
     """
         Param: 
     """
-    def __init__(self, in_dim, out_dim, num_heads, dropout=0.0, layer_norm=False, batch_norm=True, residual=True, use_bias=False):
+    def __init__(self, in_dim, out_dim, num_heads, dropout=0.0, layer_norm=False,
+                 batch_norm=True, residual=True, use_bias=False):
         super().__init__()
 
         self.in_channels = in_dim

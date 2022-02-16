@@ -6,6 +6,7 @@ from train import init
 import yaml
 import dgl
 import pandas as pd
+from tqdm import tqdm
 
 
 class GraphInference:
@@ -19,6 +20,10 @@ class GraphInference:
         self.config = config
         self.load_model()
         self.class_map = {0: 'real', 1: 'fake'}
+        self.graphs = None
+        self.scores = None
+        self.n_samples = None
+        self.info = None
 
     def load_model(self) -> None:
         gt_model = GraphTransformerNet(**self.config)
@@ -62,7 +67,7 @@ class GraphInference:
         texts = info['texts']
         original_class = info['class']
         g = MohlerDataset.laplacian_positional_encoding(graph, self.config['pos_enc_dim'])
-        batch_graphs = dgl.batch([g])
+        batch_graphs = g
         batch_graphs = batch_graphs.to(self.config['device'])
         batch_x = batch_graphs.ndata['tokens'].to(self.config['device']).to(torch.long)  # num x feat
         batch_e = batch_graphs.edata['type'].to(self.config['device']).to(torch.long)
@@ -73,23 +78,22 @@ class GraphInference:
         batch_lap_pos_enc = batch_lap_pos_enc * sign_flip.unsqueeze(0)
         return batch_graphs, batch_x, batch_e, batch_lap_pos_enc, original_class, texts
 
-    # def infer(self, graph_id: str) -> tuple:
-    #
-    #     batch_graphs, batch_x, batch_e, batch_lap_pos_enc, original_score, texts = self.prepare_batch(graph_id)
-    #     batch_scores = self.model.forward(batch_graphs, batch_x, batch_e, batch_lap_pos_enc)
-    #     pred_score = float(batch_scores[0])
-    #     return graph_id, str(original_score), str(pred_score),  " ".join(texts)
+    def infer_on_set(self, graph_id: str) -> tuple:
+        batch_graphs, batch_x, batch_e, batch_lap_pos_enc, original_score, texts = self.prepare_batch(graph_id)
+        batch_scores = self.model.forward(batch_graphs, batch_x, batch_e, batch_lap_pos_enc)
+        pred_score = float(batch_scores[0])
+        return graph_id, str(original_score), str(pred_score),  " ".join(texts)
 
-    # def infer_on_list(self, graph_ids: list, output_dir: Path) -> None:
-    #     results = []
-    #     for graph_id in tqdm(graph_ids, desc="Processing .."):
-    #         result = self.infer(graph_id)
-    #         results.append(result)
-    #     df = pd.DataFrame(results, columns=["ID", "Original Score", "Predicted Score", "Original Text"])
-    #     df.to_excel(output_dir / "inference_results.xlsx")
-    #     return
+    def infer_on_list_on_set(self, graph_ids: list, output_dir: Path) -> None:
+        results = []
+        for graph_id in tqdm(graph_ids, desc="Processing .."):
+            result = self.infer_on_set(graph_id)
+            results.append(result)
+        df = pd.DataFrame(results, columns=["ID", "Original Score", "Predicted Score", "Original Text"])
+        df.to_excel(output_dir / "inference_results.xlsx")
+        return
 
-    def infer(self, graph, graph_info):
+    def infer_on_file(self, graph, graph_info):
         data = self.prepare_for_infer(graph, graph_info)
         batch_graphs, batch_x, batch_e, batch_lap_pos_enc, original_class, texts = data
         batch_scores = self.model.forward(batch_graphs, batch_x, batch_e, batch_lap_pos_enc)
@@ -98,20 +102,20 @@ class GraphInference:
         pred_class = self.class_map[pred_index]
         return pred_class, original_class, texts
 
-    def infer_on_list(self, graph_dir: Path, graph_info_dir: Path, graph_ids: list, output_dir: Path):
+    def infer_on_list_on_files(self, graph_dir: Path, graph_info_dir: Path, graph_ids: list, output_dir: Path):
         results = []
         for graph_id in graph_ids:
             graph_path = graph_dir / (graph_id + '.bin')
             graph_info_path = graph_info_dir / (graph_id + '.pkl')
             graph, graph_info = GraphInference.load_graph(graph_path, graph_info_path)
-            pred, target, texts = self.infer(graph, graph_info)
+            pred, target, texts = self.infer_on_file(graph, graph_info)
             results.append([graph_id, target, pred, " ".join(texts)])
         df = pd.DataFrame(results, columns=["ID", "Target", "Predicted", "Text"])
         df.to_excel(output_dir / "inference_results.xlsx")
 
 
 if __name__ == "__main__":
-    config_file_path = Path("config.yaml")
+    config_file_path = Path("Experiments/Mohler_spacy_token_regress/config.yaml")
     with open(config_file_path, 'r') as f:
         config = yaml.safe_load(f)
     setup = init(config['Setup'])
@@ -129,16 +133,22 @@ if __name__ == "__main__":
     model_config['device'] = setup['device']
     model_config['n_class'] = dataset_config['n_class']
 
-    graph_dir = Path('Dataset/Fake_News/v1/GT_graphs_10k/Graph')
-    graph_info_dir = Path('Dataset/Fake_News/v1/GT_graphs_10k/Graph_info')
-    model_path = Path('Experiments/FakeNews_init/model/model_epoch_4.pt')
-    val_list_path = Path("Experiments/FakeNews_init/train.txt")
-    output_dir = Path("Experiments/FakeNews_init/results")
+    graph_dir = Path(dataset_config['graph_path'])
+    graph_info_dir = Path(dataset_config['graph_info_path'])
+    model_path = Path(dataset_config['model_dir'])
+    val_list_path = setup['exp_dir'] / 'val.txt'
+    output_dir = setup['exp_dir'] / "results"
+
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
 
     with open(val_list_path, 'r') as f:
         val_list = f.read().split("\n")
         val_list = [f for f in val_list if f]
+
+    # driver = GraphInference(model_path, model_config)
+    # driver.infer_on_list_on_files(graph_dir, graph_info_dir, val_list, output_dir)
+
     driver = GraphInference(model_path, model_config)
-    driver.infer_on_list(graph_dir, graph_info_dir, val_list, output_dir)
+    driver.load_dataset(graph_dir, graph_info_dir)
+    driver.infer_on_list_on_set(val_list, output_dir)

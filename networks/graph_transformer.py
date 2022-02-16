@@ -4,6 +4,7 @@ import torch.nn as nn
 from networks.layers.graph_transformer_edge import GraphTransformerLayer
 from networks.layers.mlp_readout import MLPReadout
 import dgl
+from copy import deepcopy
 
 
 class GraphTransformerNet(nn.Module):
@@ -100,14 +101,25 @@ class GraphTransformerNet(nn.Module):
         return self.embedding_h(h)
 
     def infer(self, h, e, g, h_lap_pos_enc=None, h_wl_pos_enc=None):
-        h = h[0]
+
+        graphs = []
+        for ht in h:
+            g_new = deepcopy(g)
+            g_new.ndata['h_init'] = ht
+            g_new.ndata['lap_pos_enc'] = h_lap_pos_enc
+            g_new.edata['type'] = e
+            graphs.append(g_new)
+
+        g = dgl.batch(graphs)
+        h = g.ndata['h_init']
+        h_lap_pos_enc = g.ndata['lap_pos_enc']
+        e = g.edata['type']
+
         h = self.in_feat_dropout(h)
         if self.lap_pos_enc:
             h_lap_pos_enc = self.embedding_lap_pos_enc(h_lap_pos_enc.float())
             h = h + h_lap_pos_enc
-        if self.wl_pos_enc:
-            h_wl_pos_enc = self.embedding_wl_pos_enc(h_wl_pos_enc)
-            h = h + h_wl_pos_enc
+
         if not self.edge_feat:  # edge feature set to 1
             e = torch.ones(e.size(0), 1).to(self.device)
         e = self.embedding_e(e)
